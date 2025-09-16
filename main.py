@@ -2,23 +2,24 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 import PyPDF2
-import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from groq import Groq
 import tempfile
 import pickle
 from typing import List, Dict, Any
 import time
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Load environment variables
 load_dotenv()
 
-# Initialize the embedding model
+# Initialize the TF-IDF vectorizer for embeddings
 @st.cache_resource
 def load_embedding_model():
-    """Load and cache the sentence transformer model"""
-    return SentenceTransformer('all-MiniLM-L6-v2')
+    """Load and cache the TF-IDF vectorizer"""
+    return TfidfVectorizer(max_features=1000, stop_words='english', ngram_range=(1, 2))
 
 # Initialize Groq client
 @st.cache_resource
@@ -77,36 +78,34 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
     
     return [chunk for chunk in chunks if chunk.strip()]
 
-def create_vector_store(chunks: List[str], embedding_model) -> tuple:
-    """Create FAISS vector store from text chunks"""
+def create_vector_store(chunks: List[str], vectorizer) -> tuple:
+    """Create TF-IDF vector store from text chunks"""
     if not chunks:
-        return None, []
+        return None, [], None
     
-    # Generate embeddings
-    embeddings = embedding_model.encode(chunks)
+    # Generate TF-IDF vectors
+    tfidf_matrix = vectorizer.fit_transform(chunks)
     
-    # Create FAISS index
-    dimension = embeddings.shape[1]
-    index = faiss.IndexFlatL2(dimension)
-    index.add(embeddings.astype('float32'))
-    
-    return index, chunks
+    return tfidf_matrix, chunks, vectorizer
 
-def search_similar_chunks(query: str, index, chunks: List[str], embedding_model, k: int = 3) -> List[str]:
-    """Search for similar chunks using FAISS"""
-    if index is None or not chunks:
+def search_similar_chunks(query: str, tfidf_matrix, chunks: List[str], vectorizer, k: int = 3) -> List[str]:
+    """Search for similar chunks using TF-IDF and cosine similarity"""
+    if tfidf_matrix is None or not chunks:
         return []
     
-    # Generate query embedding
-    query_embedding = embedding_model.encode([query])
+    # Transform query using the same vectorizer
+    query_vector = vectorizer.transform([query])
     
-    # Search for similar chunks
-    distances, indices = index.search(query_embedding.astype('float32'), k)
+    # Calculate cosine similarity
+    similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
+    
+    # Get top k most similar chunks
+    top_indices = similarities.argsort()[-k:][::-1]
     
     # Return the most similar chunks
     similar_chunks = []
-    for idx in indices[0]:
-        if idx < len(chunks):
+    for idx in top_indices:
+        if idx < len(chunks) and similarities[idx] > 0:
             similar_chunks.append(chunks[idx])
     
     return similar_chunks
@@ -129,7 +128,7 @@ Please provide a comprehensive answer based on the context above. If the context
 
     try:
         response = groq_client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that answers questions based on provided document context."},
                 {"role": "user", "content": prompt}
@@ -152,12 +151,14 @@ def main():
     st.markdown("Upload a PDF document and ask questions about its content!")
     
     # Initialize models
-    embedding_model = load_embedding_model()
+    vectorizer = load_embedding_model()
     groq_client = initialize_groq_client()
     
     # Initialize session state
-    if 'vector_store' not in st.session_state:
-        st.session_state.vector_store = None
+    if 'tfidf_matrix' not in st.session_state:
+        st.session_state.tfidf_matrix = None
+    if 'vectorizer_fitted' not in st.session_state:
+        st.session_state.vectorizer_fitted = None
     if 'chunks' not in st.session_state:
         st.session_state.chunks = []
     if 'chat_history' not in st.session_state:
@@ -186,10 +187,11 @@ def main():
                         
                         if chunks:
                             # Create vector store
-                            index, processed_chunks = create_vector_store(chunks, embedding_model)
+                            tfidf_matrix, processed_chunks, fitted_vectorizer = create_vector_store(chunks, vectorizer)
                             
                             # Store in session state
-                            st.session_state.vector_store = index
+                            st.session_state.tfidf_matrix = tfidf_matrix
+                            st.session_state.vectorizer_fitted = fitted_vectorizer
                             st.session_state.chunks = processed_chunks
                             st.session_state.document_processed = True
                             
@@ -204,7 +206,8 @@ def main():
         if st.session_state.document_processed:
             st.success("📄 Document ready for questions!")
             if st.button("Clear Document"):
-                st.session_state.vector_store = None
+                st.session_state.tfidf_matrix = None
+                st.session_state.vectorizer_fitted = None
                 st.session_state.chunks = []
                 st.session_state.document_processed = False
                 st.session_state.chat_history = []
@@ -240,9 +243,9 @@ def main():
                         # Search for relevant chunks
                         similar_chunks = search_similar_chunks(
                             user_question, 
-                            st.session_state.vector_store, 
+                            st.session_state.tfidf_matrix, 
                             st.session_state.chunks, 
-                            embedding_model
+                            st.session_state.vectorizer_fitted
                         )
                         
                         # Generate response
@@ -279,7 +282,7 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666;'>
-            <p>🚀 Powered by Streamlit, FAISS, Groq, and LLaMA | Built with ❤️</p>
+            <p>🚀 Powered by Streamlit, TF-IDF, Groq, and LLaMA | Built with ❤️</p>
         </div>
         """,
         unsafe_allow_html=True
