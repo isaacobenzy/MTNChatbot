@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
+
+# UV lock file (use requirements.txt instead)
+uv.lock
+
+# Environment variables
+.env
