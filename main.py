@@ -27,8 +27,12 @@ def initialize_groq_client():
     """Initialize and cache the Groq client"""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        st.error("GROQ_API_KEY not found in environment variables!")
-        st.stop()
+        # Try to get from Streamlit secrets as fallback
+        try:
+            api_key = st.secrets["GROQ_API_KEY"]
+        except:
+            st.error("GROQ_API_KEY not found in environment variables or Streamlit secrets!")
+            st.stop()
     return Groq(api_key=api_key)
 
 def extract_text_from_pdf(pdf_file) -> str:
