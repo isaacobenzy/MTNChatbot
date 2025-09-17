@@ -146,12 +146,12 @@ Please provide a comprehensive answer based on the context above. If the context
 
 def main():
     st.set_page_config(
-        page_title="MTN RAG Chatbot",
+        page_title="RAG Chatbot",
         page_icon="🤖",
         layout="wide"
     )
     
-    st.title("🤖 MTN RAG Chatbot")
+    st.title("🤖RAG Chatbot")
     st.markdown("Upload a PDF document and ask questions about its content!")
     
     # Initialize models
