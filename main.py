@@ -285,15 +285,14 @@ def main():
     st.markdown("---")
     st.markdown(
         """
-        <div style='text-align: center; color: #666;'>
+          <div style="text-align: center; color: #666;">
         <p>
-  🚀 Powered by Streamlit, TF-IDF, Groq, and LLaMA | Built by 
-  <a href="https://www.linkedin.com/in/isaac-obeng-obeng/" target="_blank" rel="noopener noreferrer">
-    Isaac Obeng
-  </a>
-</p>
-
-        </div>
+            🚀 Powered by Streamlit, TF-IDF, Groq, and LLaMA | Built by 
+            <a href="https://www.linkedin.com/in/isaac-obeng-obeng/" target="_blank" rel="noopener noreferrer" style="color: #0077b5; text-decoration: none;">
+                Isaac Obeng
+            </a>
+        </p>
+    </div>
         """,
         unsafe_allow_html=True
     )
