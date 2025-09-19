@@ -151,7 +151,7 @@ def main():
         layout="wide"
     )
     
-    st.title("🤖RAG Chatbot")
+    st.title("RAG Chatbot")
     st.markdown("Upload a PDF document and ask questions about its content!")
     
     # Initialize models
