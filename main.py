@@ -286,7 +286,13 @@ def main():
     st.markdown(
         """
         <div style='text-align: center; color: #666;'>
-            <p>🚀 Powered by Streamlit, TF-IDF, Groq, and LLaMA | Built with ❤️</p>
+        <p>
+  🚀 Powered by Streamlit, TF-IDF, Groq, and LLaMA | Built by 
+  <a href="https://www.linkedin.com/in/isaac-obeng-obeng/" target="_blank" rel="noopener noreferrer">
+    Isaac Obeng
+  </a>
+</p>
+
         </div>
         """,
         unsafe_allow_html=True
